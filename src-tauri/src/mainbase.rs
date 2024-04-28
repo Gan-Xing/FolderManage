@@ -6,66 +6,22 @@
 use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
-use tauri::{command, Builder, Manager, State};
-use tokio::{fs, sync::Mutex};
+use tauri::{command, AppHandle, Builder, Manager};
+use tokio::{fs, sync::Mutex, time::sleep, time::Duration};
 use walkdir::WalkDir;
-use std::sync::atomic::{AtomicBool, Ordering};
 
-struct SearchControl {
-    should_continue: AtomicBool,
-}
-
-impl SearchControl {
-    fn new() -> Self {
-        Self {
-            should_continue: AtomicBool::new(true),
-        }
-    }
-
-    fn stop(&self) {
-        self.should_continue.store(false, Ordering::Relaxed);
-    }
-
-    fn continue_search(&self) -> bool {
-        self.should_continue.load(Ordering::Relaxed)
-    }
-
-    fn reset(&self) {
-        self.should_continue.store(true, Ordering::Relaxed);
-    }
-}
-
-
-
-#[command]
-async fn stop_search(control: State<'_, Arc<SearchControl>>) -> Result<(), String> {
-    control.stop();
-    Ok(())
-}
 
 struct AppState {
     is_deleting: bool,
 }
 
 #[command]
-async fn search_folders(
-    control: State<'_, Arc<SearchControl>>,
-    app: tauri::AppHandle,
-    path: String,
-    foldername: String,
-    skipfolders: Vec<String>,
-    digin: bool,
-    fuzzy: bool,
-    casesense: bool,
-) -> Result<(), String> {
-    // 重置搜索控制状态以确保搜索可以开始
-    control.reset();
+async fn search_folders(app: AppHandle, path: String, foldername: String, skipfolders: Vec<String>, digin: bool, fuzzy: bool, casesense: bool) {
     let mut entries = WalkDir::new(&path).min_depth(1).into_iter();
 
     let mut count = 0;
     let mut actual_digin = digin;
     let foldername_to_match = if casesense { foldername.clone() } else { foldername.to_lowercase() };
-    let mut check_counter = 0;
 
     // 如果任一 skipfolder 与 foldername 相等，设置 actual_digin 为 false
     if skipfolders.iter().any(|s| case_insensitive_eq(s, &foldername, casesense)) {
@@ -73,20 +29,16 @@ async fn search_folders(
     }
 
     while let Some(entry) = entries.next() {
-         if check_counter % 1000 == 0 && !control.continue_search() {
-            break;
-        }
-        check_counter += 1;
-
         let entry = match entry {
             Ok(e) => e,
             Err(_) => continue,
         };
 
         if entry.file_type().is_dir() {
-            let current_folder_name = entry.file_name().to_string_lossy().to_string();
+            let current_folder_name = entry.file_name().to_string_lossy().to_string();  // 转换为 String
             let current_folder_name_to_match = if casesense { current_folder_name.clone() } else { current_folder_name.to_lowercase() };
 
+            // 检查当前文件夹是否是需要跳过的文件夹之一
             if skipfolders.iter().any(|s| case_insensitive_eq(s, &current_folder_name, casesense)) {
                 app.emit_all("skip-folder-found", &entry.path().display().to_string())
                     .expect("Failed to emit skip folder event");
@@ -101,12 +53,17 @@ async fn search_folders(
             };
 
             if matches {
-                count += 1; // 增加 count 计数
                 let path_str = entry.path().display().to_string();
-                app.emit_all("folder-found", &path_str).expect("Failed to emit event");
+                app.emit_all("folder-found", &path_str)
+                    .expect("Failed to emit event");
 
                 if !actual_digin {
                     entries.skip_current_dir();
+                }
+
+                count += 1;
+                if count % 10 == 0 {
+                    sleep(Duration::from_millis(10)).await;
                 }
             }
         }
@@ -116,8 +73,6 @@ async fn search_folders(
         app.emit_all("no-folders-found", &path)
             .expect("Failed to emit no folders found event");
     }
-
-    Ok(())
 }
 
 fn case_insensitive_eq(a: &String, b: &String, casesense: bool) -> bool {
@@ -206,13 +161,13 @@ async fn open_directory(path: String) -> Result<(), String> {
 
 fn main() {
     let app_state = Arc::new(Mutex::new(AppState { is_deleting: false }));
-    let control = Arc::new(SearchControl::new());
-
     Builder::default()
         .manage(app_state)
-        .manage(control)
-        .invoke_handler(tauri::generate_handler![search_folders, stop_search, delete_folders,
-            open_directory])
+        .invoke_handler(tauri::generate_handler![
+            search_folders,
+            delete_folders,
+            open_directory
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
