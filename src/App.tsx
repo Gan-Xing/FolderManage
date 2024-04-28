@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState} from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { FixedSizeList as List } from "react-window";
 import { invoke, dialog as tauriDialog } from "@tauri-apps/api";
 import { listen } from "@tauri-apps/api/event";
@@ -17,8 +17,9 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  Chip,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import ClearIcon from "@mui/icons-material/Clear";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 const App = () => {
@@ -40,6 +41,7 @@ const App = () => {
   const [fuzzy, setFuzzy] = useState(false);
   const [casesense, setCasesense] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [moreSettings, setMoreSettings] = useState(false); // 新增状态来控制更多设置的显示
 
   useEffect(() => {
     const unlisten = listen<string>("folder-found", (event) => {
@@ -190,230 +192,225 @@ const App = () => {
     setSkipfolders((prev) => prev.filter((_, i) => i !== index)); // 移除指定索引的跳过文件夹
   };
 
+  const handleToggleMoreSettings = () => {
+    setMoreSettings(!moreSettings);
+  };
+
   return (
     <Box sx={{ padding: 2 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 2,
-        }}
-      >
-        <TextField
-          label="Folder Name"
-          value={foldername}
-          onChange={(e: { target: { value: React.SetStateAction<string> } }) =>
-            setFoldername(e.target.value)
-          }
-          variant="outlined"
-        />
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+      {moreSettings ? (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2, height: "100%", justifyContent: "space-between" }}>
+      <Box>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap", backgroundColor: "#f5f5f5", padding: 2, borderRadius: "8px" }}>
           <TextField
             label="Skip Folder"
             value={skipfolder}
             onChange={(e) => setSkipfolder(e.target.value)}
             variant="outlined"
+            size="small"
+            sx={{ flex: 1, minWidth: "240px" }}
             onKeyPress={(e) => {
               if (e.key === "Enter") handleAddSkipFolder();
             }}
           />
-          <Button variant="outlined" onClick={handleAddSkipFolder}>
+          <Button variant="contained" color="primary" onClick={handleAddSkipFolder}>
             Add
           </Button>
         </Box>
-
-        <Box sx={{ display: "flex", flexDirection: "column", mb: 2 }}>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", padding: 1, backgroundColor: "#e3f2fd", borderRadius: "8px" }}>
           {skipfolders.map((folder, index) => (
-            <Box
+            <Chip
               key={index}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography>{folder}</Typography>
-              <IconButton onClick={() => handleRemoveSkipFolder(index)}>
-                <DeleteIcon />
-              </IconButton>
-            </Box>
+              label={folder}
+              onDelete={() => handleRemoveSkipFolder(index)}
+              color="primary"
+              variant="outlined"
+              sx={{ margin: "4px" }}
+            />
           ))}
         </Box>
-
-        <Box>
-          {
-            isSearching ? <Button
-            variant="contained"
-            color="secondary"
-            onClick={stopSearch}
-            disabled={!isSearching}
-          >
-            Stop Search
-          </Button> : <Button
-            variant="contained"
-            onClick={searchNodeModules}
-            disabled={isDeleting}
-          >
-            {isSearching ? "Searching..." : "Search"}
-          </Button>
-          }
-          <Button
-            variant="contained"
-            color="error"
-            onClick={deleteSelected}
-            disabled={isDeleting}
-          >
-            {isDeleting ? "Deleting..." : "Delete Selected"}
-          </Button>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, marginTop: 2 }}>
+          <Typography sx={{ minWidth: "100px" }}>Search Path:</Typography>
+          {useTextInput ? (
+            <TextField
+              fullWidth
+              variant="outlined"
+              value={selectedPath}
+              onChange={(e) => setSelectedPath(e.target.value)}
+              placeholder="Enter path to search"
+            />
+          ) : (
+            <Button variant="outlined" onClick={selectSearchPath} sx={{ flexGrow: 1 }}>
+              {selectedPath || "Select Folder Path"}
+            </Button>
+          )}
         </Box>
       </Box>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center", // 垂直居中对齐
-          justifyContent: "flex-start", // 水平从左边开始排列
-          mt: 2, // 上边距
-          width: "100%", // 占满容器宽度
-          height: "4rem",
-        }}
-      >
-        <Typography
-          sx={{
-            width: "120px", // 固定宽度，根据内容最大宽度调整
-            textAlign: "left", // 文字靠右对齐
-            mr: 2, // 右边距
-          }}
-        >
-          Search Path
-        </Typography>
-        {useTextInput ? (
-          <TextField
-            fullWidth // 充满剩余空间
-            variant="outlined"
-            value={selectedPath}
-            onChange={(e: {
-              target: { value: React.SetStateAction<string> };
-            }) => setSelectedPath(e.target.value)}
-            placeholder="Enter path to search"
-            sx={{ flex: 1, mx: 2 }} // 使用 sx 属性控制样式，设置左右边距
-          />
-        ) : (
-          <Button
-            onClick={selectSearchPath}
-            sx={{ flex: 1, mx: 2, height: "56px" }} // 设置按钮也充满剩余空间，同样设置左右边距
-          >
-            {selectedPath || "Select Folder Path"}
-          </Button>
-        )}
-      </Box>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-        <Checkbox checked={selectAll} onChange={handleSelectAllChange} />
-        <Typography>Select All</Typography>
-        <FormControlLabel
-          control={
-            <Switch checked={useTextInput} onChange={toggleInputMethod} />
-          }
-          label="Manual Input Path?"
-          sx={{ mx: 2 }}
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={digin}
-              onChange={(e) => setDigin(e.target.checked)}
-            />
-          }
-          label="Dig into subfolders?"
-          sx={{ mx: 2 }}
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={fuzzy}
-              onChange={(e) => setFuzzy(e.target.checked)}
-            />
-          }
-          label="Fuzzy Search"
-          sx={{ mx: 2 }}
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={casesense}
-              onChange={(e) => setCasesense(e.target.checked)}
-            />
-          }
-          label="Case Sensitive"
-          sx={{ mx: 2 }}
-        />
-      </Box>
-      <Typography>{`找到 ${results.length} 个文件夹`}</Typography>
+      <Button variant="contained" color="secondary" onClick={handleToggleMoreSettings} sx={{ alignSelf: "flex-end", mt: 2 }}>
+        Back
+      </Button>
+    </Box>
+    
       
-      <Box sx={{ height: 400, width: "100%", overflow: "auto" }}>
-        <List
-          height={400}
-          width="100%"
-          itemCount={results.length}
-          itemSize={50}
-          itemData={results}
-        >
-          {({ index, style }) => (
-            <Box
-              style={style}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                height: "50px",
-                bgcolor: index % 2 ? "action.hover" : "background.paper",
-              }}
-            >
-              <Checkbox
-                checked={!!checkedState[results[index]]}
-                onChange={handleCheckChange(results[index])}
-              />
-              <Typography
-                noWrap
-                sx={{
-                  flexGrow: 1,
-                  color: index % 2 ? "secondary.main" : "primary.main",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
+      ) : (
+        <>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <TextField
+              label="Folder Name"
+              value={foldername}
+              onChange={(e: {
+                target: { value: React.SetStateAction<string> };
+              }) => setFoldername(e.target.value)}
+              variant="outlined"
+              sx={{ flex: 1, margin: "1rem" }}
+            />
+            <Box>
+              {isSearching ? (
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={stopSearch}
+                  disabled={!isSearching}
+                >
+                  Stop Search
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={searchNodeModules}
+                  disabled={isDeleting}
+                  sx={{ mr: 1 }}
+                >
+                  Search
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                color="error"
+                onClick={deleteSelected}
+                disabled={isDeleting}
               >
-                {results[index]}
-              </Typography>
-              <IconButton
-                onClick={() => openDirectory(results[index])}
-                color="primary"
-                size="small"
-              >
-                <FolderOpenIcon />
-              </IconButton>
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
             </Box>
-          )}
-        </List>
-      </Box>
-
-      <Dialog open={openDialog} onClose={() => handleDialogClose(false)}>
-        <DialogTitle>{"Confirmation"}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{dialogContent}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => handleDialogClose(false)}>Cancel</Button>
-          <Button onClick={() => handleDialogClose(true)} autoFocus>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={2500}
-        onClose={() => setSnackbarOpen(false)}
-        message={snackbarMessage}
-      />
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+            <Checkbox checked={selectAll} onChange={handleSelectAllChange} />
+            <Typography>Select All</Typography>
+            <FormControlLabel
+              control={
+                <Switch checked={useTextInput} onChange={toggleInputMethod} />
+              }
+              label="Manual Input Path?"
+              sx={{ mx: 2 }}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={digin}
+                  onChange={(e) => setDigin(e.target.checked)}
+                />
+              }
+              label="Dig into subfolders?"
+              sx={{ mx: 2 }}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={fuzzy}
+                  onChange={(e) => setFuzzy(e.target.checked)}
+                />
+              }
+              label="Fuzzy Search"
+              sx={{ mx: 2 }}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={casesense}
+                  onChange={(e) => setCasesense(e.target.checked)}
+                />
+              }
+              label="Case Sensitive"
+              sx={{ mx: 2 }}
+            />
+            <Button variant="outlined" onClick={handleToggleMoreSettings}>
+              More Settings
+            </Button>
+          </Box>
+          <Typography>{`找到 ${results.length} 个文件夹`}</Typography>
+          <Box sx={{ height: 400, width: "100%", overflow: "auto" }}>
+            <List
+              height={400}
+              width="100%"
+              itemCount={results.length}
+              itemSize={50}
+              itemData={results}
+            >
+              {({ index, style }) => (
+                <Box
+                  style={style}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    height: "50px",
+                    bgcolor: index % 2 ? "action.hover" : "background.paper",
+                  }}
+                >
+                  <Checkbox
+                    checked={!!checkedState[results[index]]}
+                    onChange={handleCheckChange(results[index])}
+                  />
+                  <Typography
+                    noWrap
+                    sx={{
+                      flexGrow: 1,
+                      color: index % 2 ? "secondary.main" : "primary.main",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {results[index]}
+                  </Typography>
+                  <IconButton
+                    onClick={() => openDirectory(results[index])}
+                    color="primary"
+                    size="small"
+                  >
+                    <FolderOpenIcon />
+                  </IconButton>
+                </Box>
+              )}
+            </List>
+          </Box>
+          <Dialog open={openDialog} onClose={() => handleDialogClose(false)}>
+            <DialogTitle>{"Confirmation"}</DialogTitle>
+            <DialogContent>
+              <DialogContentText>{dialogContent}</DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => handleDialogClose(false)}>Cancel</Button>
+              <Button onClick={() => handleDialogClose(true)} autoFocus>
+                Confirm
+              </Button>
+            </DialogActions>
+          </Dialog>
+          <Snackbar
+            open={snackbarOpen}
+            autoHideDuration={2500}
+            onClose={() => setSnackbarOpen(false)}
+            message={snackbarMessage}
+          />
+        </>
+      )}
     </Box>
   );
 };
