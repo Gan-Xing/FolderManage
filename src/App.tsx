@@ -242,21 +242,22 @@ const App = () => {
         </Box>
 
         <Box>
-          <Button
-            variant="contained"
-            onClick={searchNodeModules}
-            disabled={isDeleting}
-          >
-            {isSearching ? "Searching..." : "Search"}
-          </Button>
-          <Button
+          {
+            isSearching ? <Button
             variant="contained"
             color="secondary"
             onClick={stopSearch}
             disabled={!isSearching}
           >
             Stop Search
+          </Button> : <Button
+            variant="contained"
+            onClick={searchNodeModules}
+            disabled={isDeleting}
+          >
+            {isSearching ? "Searching..." : "Search"}
           </Button>
+          }
           <Button
             variant="contained"
             color="error"
