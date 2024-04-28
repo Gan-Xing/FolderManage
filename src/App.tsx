@@ -22,7 +22,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 const App = () => {
-  const [selectedPath, setSelectedPath] = useState("");
+  const [selectedPath, setSelectedPath] = useState("/");
   const [useTextInput, setUseTextInput] = useState(false);
   const [results, setResults] = useState<string[]>([]);
   const [checkedState, setCheckedState] = useState<Record<string, boolean>>({});
@@ -348,44 +348,7 @@ const App = () => {
         />
       </Box>
       <Typography>{`找到 ${results.length} 个文件夹`}</Typography>
-      {/* <Box>
-        {results.map((file, index) => (
-          <Box
-            key={index}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              height: "50px",
-              bgcolor: index % 2 ? "action.hover" : "background.paper",
-              padding: 1,
-            }}
-          >
-            <Checkbox
-              checked={!!checkedState[file]}
-              onChange={handleCheckChange(file)}
-            />
-            <Typography
-              noWrap
-              sx={{
-                flexGrow: 1,
-                color: index % 2 ? "secondary.main" : "primary.main",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {file}
-            </Typography>
-            <IconButton
-              onClick={() => openDirectory(file)}
-              color="primary"
-              size="small"
-            >
-              <FolderOpenIcon />
-            </IconButton>
-          </Box>
-        ))}
-      </Box> */}
+      
       <Box sx={{ height: 400, width: "100%", overflow: "auto" }}>
         <List
           height={400}
