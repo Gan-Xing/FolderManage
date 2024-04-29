@@ -25,9 +25,9 @@
     },
     "windows": [
       {
-        "title": "foldermanage",
-        "width": 800,
-        "height": 600
+        "title": "文件夹管理",
+        "width": 1200,
+        "height": 800
       }
     ],
     "security": {
